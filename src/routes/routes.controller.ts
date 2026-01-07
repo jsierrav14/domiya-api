@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { RoutesService } from './routes.service';
 import { CreateRouteDto } from './dto/create-route.dto';
-import { AddStopsDto } from './dto/add-stops.dto';
+import { AddPackagesDto } from './dto/add-packages.dto';
 
 @Controller('routes')
 export class RoutesController {
@@ -12,11 +12,10 @@ export class RoutesController {
     return this.routesService.create(dto);
   }
 
-  @Post(':id/stops')
-  addStops(@Param('id') id: string, @Body() dto: AddStopsDto) {
-    return this.routesService.addStops(id, dto);
+  @Post(':id/packages')
+  addPackages(@Param('id') id: string, @Body() dto: AddPackagesDto) {
+    return this.routesService.addPackages(id, dto);
   }
-
   @Post(':id/publish')
   publish(@Param('id') id: string) {
     return this.routesService.publish(id);

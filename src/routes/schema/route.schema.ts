@@ -11,22 +11,19 @@ export enum RouteStatus {
 }
 
 @Schema({ _id: false })
-export class RouteStop {
+export class RoutePackage {
   @Prop({ type: Types.ObjectId, ref: 'Package', required: true })
   packageId: Types.ObjectId;
 
   @Prop({ required: true })
   sequence: number;
-
-  @Prop({ default: 'PENDING' })
-  stopStatus: 'PENDING' | 'DONE' | 'SKIPPED';
 }
-export const RouteStopSchema = SchemaFactory.createForClass(RouteStop);
+export const RoutePackageSchema = SchemaFactory.createForClass(RoutePackage);
 
 @Schema({ timestamps: true })
 export class Route {
   @Prop({ required: true })
-  date: string; // YYYY-MM-DD
+  date: string;
 
   @Prop({ required: true })
   shift: string;
@@ -42,8 +39,9 @@ export class Route {
   })
   status: RouteStatus;
 
-  @Prop({ type: [RouteStopSchema], default: [] })
-  stops: RouteStop[];
+  @Prop({ type: [RoutePackageSchema], default: [] })
+  packages: RoutePackage[];
 }
+
 export const RouteSchema = SchemaFactory.createForClass(Route);
-RouteSchema.index({ date: 1, courierUserId: 1, shift: 1 }, { unique: false });
+RouteSchema.index({ courierUserId: 1, date: 1, status: 1 });

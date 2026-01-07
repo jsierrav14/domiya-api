@@ -7,6 +7,7 @@ import { RoutesModule } from './routes/routes.module';
 import { UsersModule } from './users/users.module';
 import { PackagesModule } from './packages/packages.module';
 import { HealthModule } from './health/health.module';
+import { CouriersModule } from './couriers/couriers.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { HealthModule } from './health/health.module';
     UsersModule,
     PackagesModule,
     HealthModule,
+    CouriersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

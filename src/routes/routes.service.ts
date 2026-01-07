@@ -6,13 +6,13 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateRouteDto } from './dto/create-route.dto';
-import { AddStopsDto } from './dto/add-stops.dto';
 import { Route, RouteDocument, RouteStatus } from './schema/route.schema';
 import {
   Package,
   PackageDocument,
   PackageStatus,
 } from 'src/packages/schema/package.schema';
+import { AddPackagesDto } from './dto/add-packages.dto';
 
 @Injectable()
 export class RoutesService {
@@ -28,55 +28,45 @@ export class RoutesService {
       shift: dto.shift,
       courierUserId: new Types.ObjectId(dto.courierUserId),
       status: RouteStatus.DRAFT,
-      stops: [],
+      packages: [],
     });
     return route;
   }
 
-  async addStops(routeId: string, dto: AddStopsDto) {
+  async addPackages(routeId: string, dto: AddPackagesDto) {
     const route = await this.routeModel.findById(routeId);
     if (!route) throw new NotFoundException('Route not found');
 
     if (route.status !== RouteStatus.DRAFT) {
-      throw new BadRequestException('You can only add stops to a DRAFT route');
+      throw new BadRequestException(
+        'You can only add packages to a DRAFT route',
+      );
     }
 
-    // Validate packages exist and are not in another active route
-    const packageIds = dto.stops.map((s) => new Types.ObjectId(s.packageId));
+    const packageIds = dto.packages.map((p) => new Types.ObjectId(p.packageId));
     const packages = await this.packageModel.find({ _id: { $in: packageIds } });
 
     if (packages.length !== packageIds.length) {
       throw new BadRequestException('One or more packages do not exist');
     }
 
-    // Ensure not assigned to other active routes (routeId set)
+    // Block packages already assigned to another route
     const alreadyAssigned = packages.find(
       (p) => p.routeId && p.routeId.toString() !== routeId,
     );
     if (alreadyAssigned) {
-      throw new BadRequestException(
-        `Package already assigned to another route: ${alreadyAssigned._id.toString()}`,
-      );
+      throw new BadRequestException(`Package already assigned`);
     }
 
-    // Merge stops (avoid duplicates)
-    const existingSet = new Set(route.stops.map((s) => s.packageId.toString()));
-    for (const stop of dto.stops) {
-      if (!existingSet.has(stop.packageId)) {
-        route.stops.push({
-          packageId: new Types.ObjectId(stop.packageId),
-          sequence: stop.sequence,
-          stopStatus: 'PENDING',
-        });
-      }
-    }
+    // SIMPLE MVP: replace route.packages entirely (easy + predictable)
+    route.packages = dto.packages.map((p) => ({
+      packageId: new Types.ObjectId(p.packageId),
+      sequence: p.sequence,
+    }));
 
-    // Sort by sequence
-    route.stops.sort((a, b) => a.sequence - b.sequence);
-
+    route.packages.sort((a, b) => a.sequence - b.sequence);
     await route.save();
 
-    // Update packages with routeId + status
     await this.packageModel.updateMany(
       { _id: { $in: packageIds } },
       { $set: { routeId: route._id, status: PackageStatus.ASSIGNED } },
@@ -93,8 +83,8 @@ export class RoutesService {
       throw new BadRequestException('Only DRAFT routes can be published');
     }
 
-    if (!route.stops.length) {
-      throw new BadRequestException('Cannot publish a route with no stops');
+    if (!route.packages.length) {
+      throw new BadRequestException('Cannot publish a route with no packages');
     }
 
     route.status = RouteStatus.PUBLISHED;
