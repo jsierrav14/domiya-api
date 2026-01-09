@@ -19,6 +19,8 @@ import {
   RouteDocument,
   RouteStatus,
 } from '../routes/schema/route.schema';
+import { JwtUser } from '../users/types/jwt-user';
+import { UserRole } from '../users/types/user-role.enum';
 
 @Injectable()
 export class PackagesService {
@@ -50,53 +52,57 @@ export class PackagesService {
 
   async updateStatus(
     packageId: string,
-    courierUserId: string,
+    user: JwtUser,
     dto: UpdatePackageStatusDto,
   ) {
-    if (!Types.ObjectId.isValid(packageId))
+    if (!Types.ObjectId.isValid(packageId)) {
       throw new BadRequestException('Invalid package id');
-    if (!Types.ObjectId.isValid(courierUserId))
-      throw new BadRequestException('Invalid courier id');
+    }
 
     const pkg = await this.packageModel.findById(packageId);
     if (!pkg) throw new NotFoundException('Package not found');
 
-    if (!pkg.routeId)
-      throw new BadRequestException('Package is not assigned to a route');
-
-    const route = await this.routeModel.findById(pkg.routeId);
-    if (!route)
-      throw new BadRequestException('Route not found for this package');
-
-    const isActive = [RouteStatus.PUBLISHED, RouteStatus.IN_PROGRESS].includes(
-      route.status,
-    );
-    if (!isActive) throw new BadRequestException('Route is not active');
-
-    if (route.courierUserId.toString() !== courierUserId) {
-      throw new ForbiddenException(
-        'This package does not belong to your route',
-      );
-    }
-
-    // Restrict allowed updates (recommended)
-    const allowed = [
+    const allowedStatuses = [
       PackageStatus.DELIVERED,
       PackageStatus.NOT_DELIVERED,
       PackageStatus.RETURNED,
     ];
-    if (!allowed.includes(dto.status)) {
-      throw new BadRequestException(
-        `Courier can only set status to: ${allowed.join(', ')}`,
-      );
+
+    if (!allowedStatuses.includes(dto.status)) {
+      throw new BadRequestException('Invalid status transition');
     }
 
-    pkg.status = dto.status;
+    if (user.role === UserRole.ADMIN || user.role === UserRole.DESPACHO) {
+      pkg.status = dto.status;
+      await pkg.save();
+      return pkg;
+    }
 
-    // If you want to store reason/note, add fields or an events collection
-    // pkg.lastNote = dto.note; pkg.lastReasonCode = dto.reasonCode;
+    // ✅ CASE 2: REPARTIDOR → strict ownership rules
+    if (user.role === UserRole.REPARTIDOR) {
+      if (!pkg.routeId) {
+        throw new BadRequestException('Package is not assigned to a route');
+      }
 
-    await pkg.save();
-    return pkg;
+      const route = await this.routeModel.findById(pkg.routeId);
+      if (!route) throw new BadRequestException('Route not found');
+
+      const activeStatuses = [RouteStatus.PUBLISHED, RouteStatus.IN_PROGRESS];
+      if (!activeStatuses.includes(route.status)) {
+        throw new BadRequestException('Route is not active');
+      }
+
+      if (route.courierUserId.toString() !== user.id) {
+        throw new ForbiddenException(
+          'This package does not belong to your route',
+        );
+      }
+
+      pkg.status = dto.status;
+      await pkg.save();
+      return pkg;
+    }
+
+    throw new ForbiddenException('Role not allowed');
   }
 }

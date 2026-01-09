@@ -31,10 +31,6 @@ export class CouriersService {
     }
 
     const targetDate = date ?? todayYYYYMMDD();
-    console.log(
-      '🚀 ~ CouriersService ~ getMyActiveRoute ~ todayYYYYMMDD:',
-      todayYYYYMMDD(),
-    );
 
     const route = await this.routeModel
       .findOne({

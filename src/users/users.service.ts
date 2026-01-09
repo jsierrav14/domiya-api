@@ -2,13 +2,13 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './schema/user.schema';
-import { Model, Mongoose } from 'mongoose';
+import { User, UserDocument } from './schema/user.schema';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectModel(User.name) private readonly userModel: Model<Mongoose>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -32,5 +32,9 @@ export class UsersService {
 
     const result = saved.toObject() as unknown as Omit<User, 'password'>;
     return result;
+  }
+
+  async findByEmail(email: string) {
+    return (await this.userModel.findOne({ email }).exec()) || null;
   }
 }

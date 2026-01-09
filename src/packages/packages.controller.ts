@@ -1,23 +1,38 @@
-import { Controller, Post, Body, Patch, Param, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { PackagesService } from './packages.service';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageStatusDto } from './dto/update-package-status.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserRole } from '../users/types/user-role.enum';
+import { Roles } from '../auth/decorators/roles.decorator';
+import type { JwtUser } from '../users/types/jwt-user';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('packages')
 export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 
+  @Roles(UserRole.ADMIN, UserRole.DESPACHO)
   @Post()
   create(@Body() createPackageDto: CreatePackageDto) {
     return this.packagesService.create(createPackageDto);
   }
-
+  @Roles(UserRole.ADMIN, UserRole.DESPACHO, UserRole.REPARTIDOR)
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Headers('x-user-id') userId: string, // temporary until JWT
+    @CurrentUser() user: JwtUser,
     @Body() dto: UpdatePackageStatusDto,
   ) {
-    return this.packagesService.updateStatus(id, userId, dto);
+    return this.packagesService.updateStatus(id, user, dto);
   }
 }
