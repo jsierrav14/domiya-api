@@ -21,6 +21,7 @@ import {
 } from '../routes/schema/route.schema';
 import { JwtUser } from '../users/types/jwt-user';
 import { UserRole } from '../users/types/user-role.enum';
+import { ListPackagesQueryDto } from './dto/list-packages-query.dto';
 
 @Injectable()
 export class PackagesService {
@@ -104,5 +105,54 @@ export class PackagesService {
     }
 
     throw new ForbiddenException('Role not allowed');
+  }
+
+  async list(q: ListPackagesQueryDto) {
+    const page = q.page ?? 1;
+    const limit = q.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const filter: {
+      status?: string;
+      routeId?: Types.ObjectId;
+      createdAt?: { $gte?: Date; $lte?: Date };
+      $or?: { [key: string]: { $regex: string; $options: string } }[];
+    } = {};
+
+    if (q.status) filter.status = q.status;
+    if (q.routeId) filter.routeId = new Types.ObjectId(q.routeId);
+
+    if (q.from || q.to) {
+      filter.createdAt = {};
+      if (q.from) filter.createdAt.$gte = new Date(`${q.from}T00:00:00.000Z`);
+      if (q.to) filter.createdAt.$lte = new Date(`${q.to}T23:59:59.999Z`);
+    }
+
+    if (q.search) {
+      const s = q.search.trim();
+      filter.$or = [
+        { trackingCode: { $regex: s, $options: 'i' } },
+        { customerName: { $regex: s, $options: 'i' } },
+        { phone: { $regex: s, $options: 'i' } },
+        { addressText: { $regex: s, $options: 'i' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.packageModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      this.packageModel.countDocuments(filter),
+    ]);
+
+    return {
+      page,
+      limit,
+      total,
+      items,
+    };
   }
 }
