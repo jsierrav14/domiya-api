@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ApiProperty } from '@nestjs/swagger';
 
 export type PackageDocument = HydratedDocument<Package>;
 
@@ -15,19 +16,23 @@ export enum PackageStatus {
 
 @Schema({ timestamps: true })
 export class Package {
+  @ApiProperty()
   @Prop({ required: true, unique: true, index: true })
   trackingCode: string;
 
+  @ApiProperty()
   @Prop({ required: true })
   customerName: string;
 
+  @ApiProperty()
   @Prop({ required: true })
   phone: string;
 
-  // 1 paquete = 1 dirección
+  @ApiProperty()
   @Prop({ required: true })
   addressText: string;
 
+  @ApiProperty({ enum: PackageStatus })
   @Prop({
     type: String,
     enum: PackageStatus,
@@ -36,13 +41,21 @@ export class Package {
   })
   status: PackageStatus;
 
-  // Ruta actual (si está asignado a una ruta activa)
+  @ApiProperty({ type: String })
   @Prop({ type: Types.ObjectId, ref: 'Route', default: null, index: true })
   routeId?: Types.ObjectId | null;
 
-  // Si es reemplazo, enlaza al original
+  @ApiProperty({ type: String })
   @Prop({ type: Types.ObjectId, ref: 'Package', default: null })
   replacementOfPackageId?: Types.ObjectId | null;
+
+  @ApiProperty()
+  @Prop()
+  createdAt?: Date;
+
+  @ApiProperty()
+  @Prop()
+  updatedAt?: Date;
 }
 
 export const PackageSchema = SchemaFactory.createForClass(Package);

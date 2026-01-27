@@ -18,7 +18,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import type { JwtUser } from '../users/types/jwt-user';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ListPackagesQueryDto } from './dto/list-packages-query.dto';
-import { PackageStatus } from './schema/package.schema';
+import { Package, PackageStatus } from './schema/package.schema';
+import { ApiOkResponse } from '@nestjs/swagger';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('packages')
@@ -27,11 +28,20 @@ export class PackagesController {
 
   @Roles(UserRole.ADMIN, UserRole.DESPACHO)
   @Post()
+  @ApiOkResponse({
+    type: Package,
+    description: 'Package created successfully',
+  })
   create(@Body() createPackageDto: CreatePackageDto) {
     return this.packagesService.create(createPackageDto);
   }
+
   @Roles(UserRole.ADMIN, UserRole.DESPACHO, UserRole.REPARTIDOR)
   @Patch(':id/status')
+  @ApiOkResponse({
+    type: Package,
+    description: 'Package status updated successfully',
+  })
   updateStatus(
     @Param('id') id: string,
     @CurrentUser() user: JwtUser,
@@ -42,12 +52,21 @@ export class PackagesController {
 
   @Roles(UserRole.ADMIN, UserRole.DESPACHO)
   @Get()
+  @ApiOkResponse({
+    type: [Package],
+    description: 'List of packages',
+  })
   list(@Query() q: ListPackagesQueryDto) {
+    console.log('🚀 ~ PackagesController ~ list ~ q:', q);
     return this.packagesService.list(q);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DESPACHO)
   @Get('unassigned')
+  @ApiOkResponse({
+    type: [Package],
+    description: 'List of unassigned packages',
+  })
   unassigned(@Query() q: ListPackagesQueryDto) {
     return this.packagesService.list({ ...q, status: PackageStatus.CREATED });
   }

@@ -13,6 +13,7 @@ import {
   PackageStatus,
 } from 'src/packages/schema/package.schema';
 import { AddPackagesDto } from './dto/add-packages.dto';
+import { RoutePackageStats } from './dto/route-package-stats.dto';
 
 @Injectable()
 export class RoutesService {
@@ -116,5 +117,74 @@ export class RoutesService {
     // Here we keep package.routeId for audit; if you prefer to clear it, do updateMany.
 
     return route;
+  }
+  async getRouteStatistics(
+    routeId?: string,
+  ): Promise<RoutePackageStats | RoutePackageStats[]> {
+    if (routeId) {
+      return this.getStatisticsForRoute(routeId);
+    }
+    return this.getAllRoutesStatistics();
+  }
+
+  private async getStatisticsForRoute(
+    routeId: string,
+  ): Promise<RoutePackageStats> {
+    const route = await this.routeModel.findById(routeId).lean();
+    if (!route) {
+      throw new NotFoundException('Route not found');
+    }
+
+    const packages = await this.packageModel
+      .find({ routeId: new Types.ObjectId(routeId) })
+      .lean();
+
+    return this.calculateStats(route, packages);
+  }
+
+  private async getAllRoutesStatistics(): Promise<RoutePackageStats[]> {
+    const routes = await this.routeModel.find().lean();
+    const stats: RoutePackageStats[] = [];
+
+    for (const route of routes) {
+      const packages = await this.packageModel
+        .find({ routeId: route._id })
+        .lean();
+      stats.push(this.calculateStats(route, packages));
+    }
+
+    return stats;
+  }
+
+  private calculateStats(route: Route, packages: Package[]): RoutePackageStats {
+    const total = packages.length;
+    const delivered = packages.filter(
+      (p) => p.status === PackageStatus.DELIVERED,
+    ).length;
+    const returned = packages.filter(
+      (p) => p.status === PackageStatus.RETURNED,
+    ).length;
+    const notDelivered = packages.filter(
+      (p) => p.status === PackageStatus.NOT_DELIVERED,
+    ).length;
+    const replaced = packages.filter(
+      (p) => p.status === PackageStatus.REPLACED,
+    ).length;
+    const inRoute = packages.filter(
+      (p) => p.status === PackageStatus.IN_ROUTE,
+    ).length;
+
+    return {
+      routeId: (route as RouteDocument)._id.toString(),
+      date: route.date,
+      shift: route.shift,
+      totalPackages: total,
+      delivered,
+      returned,
+      notDelivered,
+      replaced,
+      inRoute,
+      deliveryRate: total > 0 ? Math.round((delivered / total) * 100) : 0,
+    };
   }
 }

@@ -25,7 +25,7 @@ export class CouriersService {
     @InjectModel(Route.name) private readonly routeModel: Model<RouteDocument>,
   ) {}
 
-  async getMyActiveRoute(courierUserId: string, date?: string) {
+  async getMyActiveRoute(courierUserId: string, date?: string): Promise<Route> {
     if (!Types.ObjectId.isValid(courierUserId)) {
       throw new BadRequestException('Invalid courier user id');
     }

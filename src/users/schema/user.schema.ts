@@ -1,17 +1,21 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../types/user-role.enum';
 
 export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
+  @ApiProperty()
   @Prop({ required: true })
   firstName: string;
 
+  @ApiProperty()
   @Prop({ required: true })
   lastName: string;
 
+  @ApiProperty()
   @Prop({
     required: true,
     unique: true,
@@ -20,9 +24,11 @@ export class User {
   })
   email: string;
 
+  @ApiProperty()
   @Prop({ required: true })
-  password: string; // hashed
+  password: string;
 
+  @ApiProperty({ enum: UserRole })
   @Prop({
     type: String,
     enum: UserRole,
@@ -31,15 +37,15 @@ export class User {
   })
   role: UserRole;
 
-  // Only for couriers
+  @ApiProperty()
   @Prop({ default: true })
   isActive: boolean;
 
-  // Optional operational data
+  @ApiProperty()
   @Prop()
   phone?: string;
 
-  // Last known position (for couriers – optional)
+  @ApiProperty()
   @Prop({
     type: {
       lat: Number,
@@ -52,13 +58,19 @@ export class User {
     lng: number;
   };
 
-  // Soft delete (recommended)
+  @ApiProperty()
   @Prop({ default: false })
   deleted: boolean;
+
+  @ApiProperty()
+  @Prop()
+  createdAt?: Date;
+
+  @ApiProperty()
+  @Prop()
+  updatedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
-
-// Indexes
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1 });
